@@ -1,3 +1,18 @@
+set.seed(101)
+
+Psychometric = SimulatePsychometricData(nParticipants = 5,
+                                        ConditionOfInterest = c(0,1),
+                                        StandardValues = c(5,8),
+                                        reps = 100,
+                                        PSE_Difference = 0.1,
+                                        JND_Difference = 0.25,
+                                        Multiplicator_PSE_Standard = 0,
+                                        Multiplicator_SD_Standard = 0.15,
+                                        Type_ResponseFunction = "Cauchy",
+                                        SD_ResponseFunction = 0.1,
+                                        Mean_Variability_Between = 0.2,
+                                        SD_Variability_Between = 0.2)
+
 ###########################################
 ####Two-Level approach######
 ###########################################
@@ -5,8 +20,6 @@ require(quickpsy)
 
 ###Fitting psychometric functions and extracting means and standard deviations
 PsychometricFunctions = quickpsy(Psychometric,Difference,Answer,grouping = .(ConditionOfInterest,ID,StandardValues), bootstrap = "none")
-
-plot(PsychometricFunctions)
 
 Parameters = PsychometricFunctions$par
 Parameters2 = Parameters %>%

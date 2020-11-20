@@ -14,7 +14,7 @@ PSE_Difference = 0.1 #the mean difference in PSEs between baseline and test (0.1
 JND_Difference = 0.25 #the mean difference in PSEs between baseline and test (0.25 corresponds to 25%)
 Multiplicator_PSE_Standard = 0 #what is the PSE of the comparison stimulus? when 0, it is just the StandardValue
 Multiplicator_SD_Standard = 0.15 #what is the standard deviation of the Cummulative Gaussian for the comparison stimulus, in units of the standard values?
-Type_ResponseFunction = "normal" #which response distribution best describes the distribution of responses presented with the staircase?
+Type_ResponseFunction = "Cauchy" #which response distribution best describes the distribution of responses presented with the staircase?
 SD_ResponseFunction = 0.1 #what is the standard deviation (for Type_ResponseFunction = "normal") or the scale (for Type_ResponseFunction = "Cauchy") of this distribution?
 Mean_Variability_Between = 0.2 #what is the between-participant variability for PSEs?
 SD_Variability_Between = 0.2 #what is the between-participant variability for JNDs?
@@ -56,13 +56,13 @@ if (Type_ResponseFunction == "normal"){
 #set everything up:
 Psychometric = Psychometric %>%
   mutate(#compute presented stimulus strengths based on means of psychometric functions and the staircase factor
-         Presented_TestStimulusStrength = Mean*staircase_factor, 
-         #compute difference between test and comparison
-         Difference = Presented_TestStimulusStrength - StandardValues, 
-         #compute how likely a "test is bigger" response is
-         AnswerProbability = pnorm(Presented_TestStimulusStrength,Mean,SD), 
-         ##get binary answers ("Test was stronger" yes/no) from probabilities for each trial
-         Answer = as.numeric(rbernoulli(length(AnswerProbability),AnswerProbability))
+    Presented_TestStimulusStrength = Mean*staircase_factor, 
+    #compute difference between test and comparison
+    Difference = Presented_TestStimulusStrength - StandardValues, 
+    #compute how likely a "test is bigger" response is
+    AnswerProbability = pnorm(Presented_TestStimulusStrength,Mean,SD), 
+    ##get binary answers ("Test was stronger" yes/no) from probabilities for each trial
+    Answer = as.numeric(rbernoulli(length(AnswerProbability),AnswerProbability))
   )
 
 ###prepare for glmer() - needs sum of YES/Total per stimulus strength and condition
