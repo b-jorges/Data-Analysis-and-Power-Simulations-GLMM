@@ -4,6 +4,8 @@ require(ggplot2)
 require(quickpsy)
 set.seed(45)
 
+setwd(dirname(rstudioapi::getSourceEditorContext()$path))
+
 #see paper for a description of each of these parameters
 nParticipants = 5 #number of participants in the study
 ID = paste0("S0",1:nParticipants) #make a vector with an ID for each participant
@@ -82,3 +84,4 @@ plot(PsychometricFunctions) +
   ylab("Probability to choose Test") +
   geom_vline(linetype = 2, xintercept = 0, color = "grey") +
   geom_hline(linetype = 2, yintercept = 0.5, color = "grey")
+ggsave(paste0(dirname(rstudioapi::getSourceEditorContext()$path),"/Figures/(Figure 3) PsychometricFunctions.jpg"), w = 12, h = 5)

@@ -26,7 +26,7 @@ SimulatePsychometricData = function(nParticipants,
       SD_Standard = StandardValues*Multiplicator_SD_Standard,
       Mean = (Mean_Standard + (ConditionOfInterest==1)*Mean_Standard*PSE_Difference)*PSE_Factor_ID,
       SD = abs(SD_Standard + (ConditionOfInterest==1)*SD_Standard*JND_Difference)*SD_Factor_ID)
-
+  
   if (Type_ResponseFunction == "normal"){
     
     Psychometric = Psychometric %>%
