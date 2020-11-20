@@ -1,70 +1,41 @@
 ###Pull the whole repository
 require(dplyr)
-require(tidyverse)
-require(lme4)
 require(ggplot2)
-require(cowplot)
-theme_set(theme_cowplot())
 require(quickpsy)
-require(brms)
-require(rstan)
-require(DHARMa)
-set.seed(1)
+set.seed(45)
 
-setwd(dirname(rstudioapi::getSourceEditorContext()$path))
+#see paper for a description of each of these parameters
+nParticipants = 5 #number of participants in the study
+ID = paste0("S0",1:nParticipants) #make a vector with an ID for each participant
+ConditionOfInterest = c(0,1) #just a vector to decide whether a trial is baseline (0) or test condition (1)
+StandardValues = c(5,8) #values for the comparison stimulus (e.g., 5 m/s and 8 m/s)
+reps = 100 #how many trials does a staircase have?
+PSE_Difference = 0.1 #the mean difference in PSEs between baseline and test (0.1 corresponds to 10%)
+JND_Difference = 0.25 #the mean difference in PSEs between baseline and test (0.25 corresponds to 25%)
+Multiplicator_PSE_Standard = 0 #what is the PSE of the comparison stimulus? when 0, it is just the StandardValue
+Multiplicator_SD_Standard = 0.15 #what is the standard deviation of the Cummulative Gaussian for the comparison stimulus, in units of the standard values?
+Type_ResponseFunction = "normal" #which response distribution best describes the distribution of responses presented with the staircase?
+SD_ResponseFunction = 0.1 #what is the standard deviation (for Type_ResponseFunction = "normal") or the scale (for Type_ResponseFunction = "Cauchy") of this distribution?
+Mean_Variability_Between = 0.2 #what is the between-participant variability for PSEs?
+SD_Variability_Between = 0.2 #what is the between-participant variability for JNDs?
 
-
-binomial_smooth <- function(...) {
-  geom_smooth(method = "glm", method.args = list(family = "binomial"), ...)}
-
-
-source("Utilities/parabolic.r")
-source("Utilities/functions.r")
-source("Utilities/colourschemes.r")
-source("Utilities/PowerFunctions.r")
-
-#optimize for fitting of Bayesian Linear Mixed Models (packages "rstan", "bmrs")
-options(mc.cores = parallel::detectCores())
-rstan_options(auto_write = TRUE)
-Sys.setenv(LOCAL_CPPFLAGS = '-march=corei7')
-
-
-#set.seed(9121)
-
-
-ID = paste0("S0",1:5)
-ConditionOfInterest = c(0,1)
-StandardValues = c(5,6,7,8)
-reps = 1:100
-PSE_Difference = 0.1
-JND_Difference = 0.25
-Multiplicator_PSE_Standard = 0
-Multiplicator_SD_Standard = 0.15
-Type_ResponseFunction = "normal"
-SD_ResponseFunction = 0.1
-Mean_Variability_Between = 0.2
-SD_Variability_Between = 0.2
-
-
-Psychometric = expand.grid(ID=ID, ConditionOfInterest=ConditionOfInterest, StandardValues=StandardValues, reps = reps)
+#make dataframe with one row per trial, participant, condition and standard value
+Psychometric = expand.grid(ID=ID, ConditionOfInterest=ConditionOfInterest, StandardValues=StandardValues, reps = 1:reps)
 
 Psychometric = Psychometric %>%
   group_by(ID) %>%#
   mutate(PSE_Factor_ID = rnorm(1,1,Mean_Variability_Between), #how much variability is in the means of the psychometric functions between subjects?
          SD_Factor_ID = rnorm(1,1,SD_Variability_Between)) #how much variability is in the standard deviations of the psychometric functions between subjects?
 
+#setup means and standard deviations of Cummulative Gaussian distributions (used as psychometric functions)
 Psychometric = Psychometric %>%
   mutate(
     Mean_Standard = StandardValues+StandardValues*Multiplicator_PSE_Standard,
     SD_Standard = StandardValues*Multiplicator_SD_Standard,
-    Mean = (Mean_Standard + (ConditionOfInterest==1)*Mean_Standard*PSE_Difference),
-    SD = abs(SD_Standard + (ConditionOfInterest==1)*SD_Standard*JND_Difference))
+    Mean = (Mean_Standard + (ConditionOfInterest==1)*Mean_Standard*PSE_Difference)*PSE_Factor_ID,
+    SD = abs(SD_Standard + (ConditionOfInterest==1)*SD_Standard*JND_Difference)*SD_Factor_ID)
 
-Psychometric = Psychometric %>%
-  mutate(
-    Mean = Mean*PSE_Factor_ID,
-    SD = SD*SD_Factor_ID)
-
+#pick a response function and create multipliers corresponding to the values presented during the staircase
 if (Type_ResponseFunction == "normal"){
   
   Psychometric = Psychometric %>%
@@ -77,28 +48,21 @@ if (Type_ResponseFunction == "normal"){
     mutate(
       staircase_factor = rcauchy(length(reps),1,SD_ResponseFunction*(1+ConditionOfInterest*JND_Difference)))
   
-  #} else if (Type_ResponseFunction == "uniform"){
-  #  
-  #  Psychometric = Psychometric %>%
-  #  mutate(
-  #      staircase_factor = seq(SD_ResponseFunction[1],SD_ResponseFunction[2],(SD_ResponseFunction[2]-SD_ResponseFunc#tion[1]/6)))
-  
 } else{
   
   print("distribution not valid")
-  
 }
 
+#set everything up:
 Psychometric = Psychometric %>%
-    mutate(Presented_TestStimulusStrength = Mean*staircase_factor,
-    Difference = Presented_TestStimulusStrength - StandardValues)
-
-Psychometric = Psychometric %>%
-  mutate(
-    AnswerProbability = pnorm(Presented_TestStimulusStrength,Mean,SD),
-    
-    ##get binary answers ("Test was stronger" yes/no) from probabilities for each trial
-    Answer = as.numeric(rbernoulli(length(AnswerProbability),AnswerProbability))
+  mutate(#compute presented stimulus strengths based on means of psychometric functions and the staircase factor
+         Presented_TestStimulusStrength = Mean*staircase_factor, 
+         #compute difference between test and comparison
+         Difference = Presented_TestStimulusStrength - StandardValues, 
+         #compute how likely a "test is bigger" response is
+         AnswerProbability = pnorm(Presented_TestStimulusStrength,Mean,SD), 
+         ##get binary answers ("Test was stronger" yes/no) from probabilities for each trial
+         Answer = as.numeric(rbernoulli(length(AnswerProbability),AnswerProbability))
   )
 
 ###prepare for glmer() - needs sum of YES/Total per stimulus strength and condition
@@ -107,3 +71,14 @@ Psychometric = Psychometric %>%
   group_by(ID,ConditionOfInterest,StandardValues,Difference) %>%
   mutate(Yes = sum(Answer==1),
          Total = length(ConditionOfInterest))
+
+#draw psychometric functions
+PsychometricFunctions = quickpsy(Psychometric,Difference,Answer,grouping = .(ConditionOfInterest,ID,StandardValues), bootstrap = "none")
+plot(PsychometricFunctions) +
+  scale_color_manual(name = "",
+                     values = c(Red,BlauUB),
+                     labels = c("Control","Experimental")) +
+  xlab("Difference between Comparison and Test") +
+  ylab("Probability to choose Test") +
+  geom_vline(linetype = 2, xintercept = 0, color = "grey") +
+  geom_hline(linetype = 2, yintercept = 0.5, color = "grey")
