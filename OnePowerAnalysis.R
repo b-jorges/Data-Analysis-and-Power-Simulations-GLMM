@@ -11,7 +11,7 @@ RangeRepetitions = c(40,70,100)
 
 ConditionOfInterest = c(0,1)
 StandardValues = c(5,6,7,8)
-PSE_Difference = 0.1
+PSE_Difference = 0.025
 JND_Difference = 0.25
 Multiplicator_PSE_Standard = 0
 Multiplicator_SD_Standard = 0.15
@@ -77,10 +77,16 @@ PowerfulDataframe = PowerfulDataframe %>% group_by(nParticipants,reps) %>%
   mutate(Power_PSE = mean(pvalue_PSE < alpha),
          Power_JND = mean(pvalue_JND < alpha))
 
-PowerfulDataframe %>% group_by(nParticipants,reps) %>% 
-  slice(1)
+PowerfulDataframe2 = (PowerfulDataframe %>% group_by(nParticipants,reps) %>% 
+  slice(1))
 
-ggplot(PowerfulDataframe, aes(nParticipants,Power, color = as.factor(reps))) +
+PowerfulDataframe3 = data.frame(nParticipants = rep(PowerfulDataframe2$nParticipants,2),
+                                reps = rep(PowerfulDataframe2$reps,2),
+                                Power = c(PowerfulDataframe2$Power_PSE,PowerfulDataframe2$Power_JND),
+                                WhichValue = c(rep("PSE",18),rep("JND",18)))
+
+
+ggplot(PowerfulDataframe3, aes(nParticipants,Power, color = as.factor(reps))) +
   geom_line(size = 1) +
   xlab("Number of Participants") +
   ylab("Power") +
@@ -93,4 +99,4 @@ ggplot(PowerfulDataframe, aes(nParticipants,Power, color = as.factor(reps))) +
   facet_wrap(WhichValue~.) +
   theme(legend.position = c(0.4,0.2))
 ggsave(paste0(dirname(rstudioapi::getSourceEditorContext()$path),
-              "/Figures/(Figure 8) OnePowerAnalysis.r"))
+              "/Figures/(Figure 8) OnePowerAnalysis.jpg"), w = 5, h = 5)

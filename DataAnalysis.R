@@ -1,5 +1,13 @@
 set.seed(34)
 
+setwd(paste0(dirname(rstudioapi::getSourceEditorContext()$path)))
+source("SimulateDataFunction.r")
+source("functions.r")
+
+require(ggplot2)
+require(cowplot)
+theme_set(theme_cowplot())
+
 Psychometric = SimulatePsychometricData(nParticipants = 5,
                                         ConditionOfInterest = c(0,1),
                                         StandardValues = c(5,6,7,8),
@@ -33,75 +41,147 @@ Parameters2 = Parameters %>%
 Parameters2$SD = Parameters$par[Parameters$parn == "p2"]
 Parameters = Parameters2
 
-###performing ANOVA
-###computes pvalues for ANOVA
-require(lmerTest)
+###performing t test
+###computes pvalues for t test
+Baseline_PSE = (Parameters %>% filter(ConditionOfInterest == 0))$Mean
+CoI_PSE = (Parameters %>% filter(ConditionOfInterest == 1))$Mean
+t.test(Baseline_PSE, CoI_PSE)
 
-ANOVA_Mean = lm(Mean ~ as.factor(ConditionOfInterest)*StandardValues,Parameters)
-ANOVA_SD = lm(SD ~ as.factor(ConditionOfInterest)*StandardValues,Parameters)
-LMM_Mean = lmer(Mean ~ as.factor(ConditionOfInterest)*StandardValues + (1 | ID),
-                data = Parameters)
-LMM_SD = lmer(SD ~ as.factor(ConditionOfInterest)*StandardValues + (1 | ID),
-              data = Parameters)
-summary(ANOVA_Mean)
-summary(ANOVA_SD)
-summary(LMM_Mean)
-summary(LMM_SD)
-round(ranef(LMM_Mean)$ID$"(Intercept)",2)
+Baseline_SD = (Parameters %>% filter(ConditionOfInterest == 0))$SD
+CoI_SD = (Parameters %>% filter(ConditionOfInterest == 1))$SD
+t.test(Baseline_SD, CoI_SD)
 
-LMM_Mean_2 = lmer(Mean ~ ConditionOfInterest + (1 | ID) + (1 | StandardValues),
+#this is equivalent to a Linear Model with ConditionOfInterest as fixed effect
+LM_Mean = lm(Mean ~ ConditionOfInterest, Parameters)
+LM_SD = lm(SD ~ ConditionOfInterest, Parameters)
+summary(LM_Mean)
+summary(LM_SD)
+
+LMM_Mean_ID = lmer(Mean ~ ConditionOfInterest + (1 | ID),
                   data = Parameters)
-LMM_SD_2 = lmer(SD ~ ConditionOfInterest + (1 | ID) + (1 | StandardValues),
+LMM_SD_ID = lmer(SD ~ ConditionOfInterest + (1 | ID),
                 data = Parameters)
-summary(LMM_Mean_2)
-summary(LMM_SD_2)
+summary(LMM_Mean_ID)
+summary(LMM_SD_ID)
+round(ranef(LMM_Mean_ID)$ID$"(Intercept)",2)
+round(ranef(LMM_SD_ID)$ID$"(Intercept)",2)
+
+
+LMM_Mean_ID_SV = lmer(Mean ~ ConditionOfInterest + (1 | ID) + (1 | StandardValues),
+                   data = Parameters)
+LMM_SD_ID_SV = lmer(SD ~ ConditionOfInterest + (1 | ID) + (1 | StandardValues),
+                 data = Parameters)
+summary(LMM_Mean_ID_SV)
+summary(LMM_SD_ID_SV)
+
 
 #make dataframe with all of the above to paste into paper
-ResultsDifferentAnalyses = data.frame(Analysis = c("ANOVA PSE", 
-                                                  "LMM PSE",
+ResultsDifferentAnalyses = data.frame(Analysis = c("t test PSE", 
+                                                  "LMM 1PSE",
                                                   "LMM 2 PSE",
-                                                  "ANOVA SD", 
-                                                  "LMM SD",
+                                                  "t test SD", 
+                                                  "LMM 1 SD",
                                                   "LMM 2 SD"),
-                                     Coefficient = c(round(summary(ANOVA_Mean)$coef[2],2),
-                                                     round(summary(LMM_Mean)$coef[2],2),
-                                                     round(summary(LMM_Mean_2)$coef[2],2),
-                                                     round(summary(ANOVA_SD)$coef[2],2),
-                                                     round(summary(LMM_SD)$coef[2],2),
-                                                     round(summary(LMM_SD_2)$coef[2],2)),
-                                     SE = c(round(summary(ANOVA_Mean)$coef[6],2),
-                                            round(summary(LMM_Mean)$coef[6],2),
-                                            round(summary(LMM_Mean_2)$coef[4],2),
-                                            round(summary(ANOVA_SD)$coef[6],2),
-                                            round(summary(LMM_SD)$coef[6],2),
-                                            round(summary(LMM_SD_2)$coef[4],2)),
-                                     Pvalue = c(round(summary(ANOVA_Mean)$coef[14],2),
-                                                round(summary(LMM_Mean)$coef[18],2),
-                                                round(summary(LMM_Mean_2)$coef[10],2),
-                                                round(summary(ANOVA_SD)$coef[14],2),
-                                                round(summary(LMM_SD)$coef[18],2),
-                                                round(summary(LMM_SD_2)$coef[10],2)))
+                                     Coefficient = c(round(summary(LM_Mean)$coef[2],2),
+                                                     round(summary(LMM_Mean_ID)$coef[2],2),
+                                                     round(summary(LMM_Mean_ID_SV)$coef[2],2),
+                                                     round(summary(LM_SD)$coef[2],2),
+                                                     round(summary(LMM_SD_ID)$coef[2],2),
+                                                     round(summary(LMM_SD_ID_SV)$coef[2],2)),
+                                     SE = c(round(summary(LM_Mean)$coef[4],2),
+                                            round(summary(LMM_Mean_ID)$coef[4],2),
+                                            round(summary(LMM_Mean_ID_SV)$coef[4],2),
+                                            round(summary(LM_SD)$coef[4],2),
+                                            round(summary(LMM_SD_ID)$coef[4],2),
+                                            round(summary(LMM_SD_ID_SV)$coef[4],2)),
+                                     Pvalue = c(round(summary(LM_Mean)$coef[8],3),
+                                                round(summary(LMM_Mean_ID)$coef[10],3),
+                                                round(summary(LMM_Mean_ID_SV)$coef[10],3),
+                                                round(summary(LM_SD)$coef[8],3),
+                                                round(summary(LMM_SD_ID)$coef[10],3),
+                                                round(summary(LMM_SD_ID_SV)$coef[10],3)))
+
 ##make plots: Figure 4
 Parameters$ConditionOfInterest[Parameters$ConditionOfInterest == 1] = "Condition of Interest"
 Parameters$ConditionOfInterest[Parameters$ConditionOfInterest == 0] = "Baseline"
 
-Plot_LMM_Mean = ggplot(Parameters,aes(StandardValues,Mean,color = ID)) +
-  geom_point(size = 4) +
-  facet_grid(.~ConditionOfInterest) +
+Parameters$Mean_ID = c()
+for (i in 1:length(rownames(ranef(LMM_Mean_ID)$ID))){
+  Participant = rownames(ranef(LMM_Mean_ID)$ID)[i]
+  Parameters$Mean_ID[Parameters$ID == Participant] = Parameters$Mean[Parameters$ID == Participant]-ranef(LMM_Mean_ID)$ID$"(Intercept)"[i]
+}
+
+Parameters$Mean_ID_StandardValues = c()
+for (i in 1:length(rownames(ranef(LMM_Mean_ID_SV)$ID))){
+  for (j in 1:length(rownames(ranef(LMM_Mean_ID_SV)$StandardValues))){
+    Participant = rownames(ranef(LMM_Mean_ID_SV)$ID)[i]
+    StandardValue = rownames(ranef(LMM_Mean_ID_SV)$StandardValues)[j]
+    Parameters$Mean_ID_StandardValues[Parameters$ID == Participant & Parameters$StandardValues == StandardValue] = 
+      Parameters$Mean[Parameters$ID == Participant & Parameters$StandardValues == StandardValue] - 
+      ranef(LMM_Mean_ID_SV)$ID$"(Intercept)"[i] - ranef(LMM_Mean_ID_SV)$StandardValue$"(Intercept)"[j]
+  }
+}
+
+Plot_Mean = ggplot(Parameters) +
+  geom_flat_violin(position = position_nudge(x = .05, y = 0), 
+          fill = "grey",
+          aes(x=ConditionOfInterest,y=Mean),
+          color = "grey",
+          width = 0.6) +
+  geom_point(position = position_jitter(width = 0.05), 
+             size = 3,
+             aes(x=ConditionOfInterest, y=Mean, fill = ID, colour = ID)) +
+  xlab("") +
+  ylab("Mean (m/s)") +
+  coord_cartesian(ylim = c(-1.7,2.7)) +
   scale_color_manual(name = "",
                      values = colorRampPalette(c(BlauUB,Yellow, Red))(5)) +
-  geom_smooth(method='lm', se = FALSE) +
-  xlab("Standard Values (m/s)") +
-  ylab("Normalized Mean (m/s)")
+  theme(legend.position = "none") +
+  ggtitle("A. No random effects") +
+  geom_hline(yintercept = mean(Parameters$Mean[Parameters$ConditionOfInterest == "Baseline"]),
+             linetype = 2)
 
-Plot_LM_Mean = ggplot(Parameters,aes(StandardValues,Mean)) +
-  geom_point(size = 4) +
-  facet_grid(.~ConditionOfInterest) +
-  geom_smooth(method='lm',color = "black", se = FALSE) +
-  xlab("Standard Values (m/s)") +
-  ylab("Normalized Mean (m/s)")
-plot_grid(Plot_LM_Mean,Plot_LMM_Mean, labels = "AUTO")
-ggsave(paste0(dirname(rstudioapi::getSourceEditorContext()$path),"/Figures/(Figure4) SDs and Means.jpg"), w = 12, h = 5)
+Plot_Mean_ID = ggplot(Parameters) +
+  geom_flat_violin(position = position_nudge(x = .05, y = 0), 
+                   fill = "grey",
+                   aes(x=ConditionOfInterest,y=Mean_ID),
+                   color = "grey",
+                   width = 0.6) +
+  geom_point(position = position_jitter(width = 0.05), 
+             size = 3,
+             aes(x=ConditionOfInterest, y=Mean_ID, fill = ID, colour = ID)) +
+  xlab("") +
+  ylab(expression("Mean - Intercept"[ID]*" (m/s)")) +
+  coord_cartesian(ylim = c(-1.7,2.7)) +
+  scale_color_manual(name = "",
+                     values = colorRampPalette(c(BlauUB,Yellow, Red))(5)) +
+  theme(legend.position = "none") +
+  ggtitle("B. One Random Intercept") +
+  geom_hline(yintercept = mean(Parameters$Mean_ID[Parameters$ConditionOfInterest == "Baseline"]),
+             linetype = 2)
+
+Plot_Mean_ID_StandardValues = ggplot(Parameters) +
+  geom_flat_violin(position = position_nudge(x = .05, y = 0), 
+                   fill = "grey",
+                   aes(x=ConditionOfInterest,y=Mean_ID_StandardValues),
+                   color = "grey",
+                   width = 0.6) +
+  geom_point(position = position_jitter(width = 0.05), 
+             size = 3,
+             aes(x=ConditionOfInterest, y=Mean_ID_StandardValues, fill = ID, colour = ID)) +
+  xlab("") +
+  ylab(expression("Mean - Intercept"[ID]*" - Intercept"[StandardValues]*" (m/s)")) +
+  coord_cartesian(ylim = c(-1.7,2.7)) +
+  scale_color_manual(name = "",
+                     values = colorRampPalette(c(BlauUB,Yellow, Red))(5)) +
+  theme(legend.position = "none") +
+  ggtitle("C. Two Random Intercepts")+
+  geom_hline(yintercept = mean(Parameters$Mean_ID_StandardValues[Parameters$ConditionOfInterest == "Baseline"]),
+             linetype = 2)
+
+plot_grid(Plot_Mean,Plot_Mean_ID,Plot_Mean_ID_StandardValues, nrow = 1)
+ggsave("Figures/(Figure 4) Random Effects.jpg", w = 11, h = 6)
+
 
 GLMM_RandomIntercepts_JND = glmer(Answer ~ ConditionOfInterest*Difference + (1| ID), 
              family = binomial(link = "probit"),

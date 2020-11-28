@@ -1,3 +1,5 @@
+require(purrr)
+
 SimulatePsychometricData = function(nParticipants,
                                     ConditionOfInterest,
                                     StandardValues,

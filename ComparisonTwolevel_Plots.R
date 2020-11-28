@@ -3,6 +3,7 @@ require(dplyr)
 require(ggplot2)
 require(cowplot)
 theme_set(theme_cowplot())
+source(paste0(dirname(rstudioapi::getSourceEditorContext()$path),"/functions.r")) #download this function before running the script
 
 
 ########################################################################
@@ -97,4 +98,4 @@ Powers3 = ggplot(Dataframe_Powers_Big %>% filter(reps == 100), aes(n,power,color
   ggtitle("C. 100 Trials per Staircase")
 
 plot_shared_legend(Powers1,Powers2, Powers3)
-ggsave(paste0(dirname(rstudioapi::getSourceEditorContext()$path)),"/Figures/PowerComparison.jpg", w = 18, h = 12)
+ggsave(paste0(dirname(rstudioapi::getSourceEditorContext()$path),"/Figures/(Figure 7) PowerComparison.jpg"), w = 18, h = 12)
