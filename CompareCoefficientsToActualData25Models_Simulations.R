@@ -7,29 +7,37 @@ require(quickpsy)
 setwd(dirname(rstudioapi::getSourceEditorContext()$path))
 source("SimulateDataFunction.r")
 
+#Running this entire script can take very long, about ~48 hours
+
 set.seed(4)
 Dataframe = c()
 
+#Simple function that computed the RMSE between data points and a cumulative Gaussian function. 
+#We use this later to fit a Cumulative Gaussian to the curves recovered by the GLMMs
 FitCumGaussian = function(par,Mean,Difference,Prediction){
   (mean((pnorm(Difference,Mean,par)-Prediction)^2))
 }
 
+#how many datasets are we simulating to calculate power etc. over?
 Repetitions = 100
 
-nParticipants = 20
-ConditionOfInterest = c(0,1)
-StandardValues = c(5,6,7,8)
-reps = 70
-Multiplicator_PSE_Standard = 0
-Multiplicator_SD_Standard = 0.15
-Type_ResponseFunction = "Cauchy"
-SD_ResponseFunction = 0.1
-Mean_Variability_Between = 0.2
-SD_Variability_Between = 0.2
-ID = paste0("s",1:nParticipants)
+nParticipants = 20 #how many participants are simulated
+ConditionOfInterest = c(0,1) #0 = baseline condition, 1 = test condition
+StandardValues = c(5,6,7,8) #strengths of the reference stimulus
+reps = 70 #how many trials per staircase
+Multiplicator_PSE_Standard = 0 #expected percentage difference between the mean of the psychometric function in the baseline condition and the strength of the reference stimulus
+Multiplicator_SD_Standard = 0.15 #expected standard deviation of fitted psychometric functions (Cum Gaussians) in percent of the reference stimulus
+Type_ResponseFunction = "Cauchy" #expected distribution that best describes the test stimulus strengths chosen by the staircase
+SD_ResponseFunction = 0.1 #standard deviation of this function (if Cum Gaussian) or scale (if Cauchy)
+Mean_Variability_Between = 0.2 #expected variability in PSE between participants as fraction of the stengths of the reference stimulus
+SD_Variability_Between = 0.2 #expected variability in JNDs between participants  as fraction of the stengths of the reference stimulus
+
+
+ID = paste0("s",1:nParticipants) #vector with participant IDs
 
 for (j in 1:6){
-  
+
+  #we simulate datasets for different combinations of differneces in PSEs and JNDs between baseline and test condition  
   if (j == 1){
     PSE_Difference = -0.0125
     JND_Difference = 0.08
@@ -70,6 +78,7 @@ for (j in 1:6){
     
     Beginning = Sys.time()
 
+    #simulate the psychometric data (see "SimulateDataFunction.r")
     Psychometric = SimulatePsychometricData(nParticipants,
                                             ConditionOfInterest,
                                             StandardValues,
@@ -83,7 +92,7 @@ for (j in 1:6){
                                             Mean_Variability_Between,
                                             SD_Variability_Between)
     
-    ##########fit psychometric functions and get values
+    ##########fit psychometric functions and get means and standard deviations
     (Parameters = quickpsy(Psychometric,Difference,Answer,
                            grouping = .(ID,ConditionOfInterest,StandardValues), 
                            bootstrap = "none")$par)
@@ -95,6 +104,10 @@ for (j in 1:6){
     ##########/end
     
     Dataframe1 = Psychometric
+    
+    
+    #Fit all models of interest (with different random effect condigurations, inspired my Moscatelli et al. 2012, JoV)
+    #Also predict values from fitted parameters and save them in a dataframe for later use
     
     print("Model1")
     Model1 = glm(cbind(Yes, Total - Yes) ~ ConditionOfInterest*Difference, 
@@ -336,6 +349,7 @@ for (j in 1:6){
     Dataframe1$Prediction_Model25 = predict(Model25, type = "response", newdata = Dataframe1)
     
     
+    #get the AIC for each of the fitted GLMMs
     Dataframe1$AIC1 = Model1$aic
     Dataframe1$AIC2 = summary(Model2)$AICtab[1]
     Dataframe1$AIC3 = summary(Model3)$AICtab[1]
@@ -362,7 +376,7 @@ for (j in 1:6){
     Dataframe1$AIC24 = summary(Model24)$AICtab[1]
     Dataframe1$AIC25 = summary(Model25)$AICtab[1]
     
-    
+    #get the regression coefficient corresponding to the PSEs
     Dataframe1$CoefCond1 =   summary(Model1)$coefficients[2]
     Dataframe1$CoefCond2 = summary(Model2)$coefficients[2]
     Dataframe1$CoefCond3 = summary(Model3)$coefficients[2]
@@ -389,6 +403,7 @@ for (j in 1:6){
     Dataframe1$CoefCond24 = summary(Model24)$coefficients[2]
     Dataframe1$CoefCond25 = summary(Model25)$coefficients[2]
     
+    #get the regression coefficient corresponding to the JNDs
     Dataframe1$CoefInteraction1 =   summary(Model1)$coefficients[4]
     Dataframe1$CoefInteraction2 = summary(Model2)$coefficients[4]
     Dataframe1$CoefInteraction3 = summary(Model3)$coefficients[4]
@@ -415,6 +430,7 @@ for (j in 1:6){
     Dataframe1$CoefInteraction24 = summary(Model24)$coefficients[4]
     Dataframe1$CoefInteraction25 = summary(Model25)$coefficients[4]
     
+    #get the estimated p value (via lmerTest) for the regression coefficient corresponding to PSEs
     Dataframe1$PvaluesCoI1 =   summary(Model1)$coefficients[14]
     Dataframe1$PvaluesCoI2 = summary(Model2)$coefficients[14]
     Dataframe1$PvaluesCoI3 = summary(Model3)$coefficients[14]
@@ -441,6 +457,7 @@ for (j in 1:6){
     Dataframe1$PvaluesCoI24 = summary(Model24)$coefficients[14]
     Dataframe1$PvaluesCoI25 = summary(Model25)$coefficients[14]
     
+    #get the estimated p value (via lmerTest) for the regression coefficient corresponding to JNDs
     Dataframe1$PvaluesInterac1 =   summary(Model1)$coefficients[16]
     Dataframe1$PvaluesInterac2 = summary(Model2)$coefficients[16]
     Dataframe1$PvaluesInterac3 = summary(Model3)$coefficients[16]
@@ -467,6 +484,7 @@ for (j in 1:6){
     Dataframe1$PvaluesInterac24 = summary(Model24)$coefficients[16]
     Dataframe1$PvaluesInterac25 = summary(Model25)$coefficients[16]
     
+    #get the estimated standard error for the regression coefficient corresponding to PSEs
     Dataframe1$SECoI1 =   summary(Model1)$coefficients[6]
     Dataframe1$SECoI2 = summary(Model2)$coefficients[6]
     Dataframe1$SECoI3 = summary(Model3)$coefficients[6]
@@ -493,6 +511,7 @@ for (j in 1:6){
     Dataframe1$SECoI24 = summary(Model24)$coefficients[6]
     Dataframe1$SECoI25 = summary(Model25)$coefficients[6]
     
+    #get the estimated standard error for the regression coefficient corresponding to JNDs
     Dataframe1$SEInterac1 =   summary(Model1)$coefficients[8]
     Dataframe1$SEInterac2 = summary(Model2)$coefficients[8]
     Dataframe1$SEInterac3 = summary(Model3)$coefficients[8]
@@ -519,6 +538,8 @@ for (j in 1:6){
     Dataframe1$SEInterac24 = summary(Model24)$coefficients[6]
     Dataframe1$SEInterac25 = summary(Model25)$coefficients[6]
     
+    #get the PSEs for the responses predicted from the fitted parameters for each model 
+    #by recovering the stimulus strength where the predicted responses are closest to 0.5 
     Dataframe1 = Dataframe1 %>%
       group_by(ConditionOfInterest,ID,StandardValues) %>%
       mutate(Mean_Model1 = Difference[which.min(abs(Prediction_Model1-0.5))],
@@ -547,6 +568,8 @@ for (j in 1:6){
              Mean_Model24 = Difference[which.min(abs(Prediction_Model24-0.5))],
              Mean_Model25 = Difference[which.min(abs(Prediction_Model25-0.5))])
     
+    #get the standard deviations of fitted psychometric functions for the responses 
+    #predicted from the fitted parameters for each model 
     Dataframe1 = Dataframe1 %>%
       group_by(ConditionOfInterest,ID,StandardValues) %>%
       mutate(SD_Model1 = optimize(FitCumGaussian,c(0,5),Mean = Mean_Model1,Difference = Difference,Prediction = Prediction_Model1)$minimum,
@@ -575,11 +598,13 @@ for (j in 1:6){
              SD_Model24 = optimize(FitCumGaussian,c(0,5),Mean = Mean_Model24,Difference = Difference,Prediction = Prediction_Model24)$minimum,
              SD_Model25 = optimize(FitCumGaussian,c(0,5),Mean = Mean_Model25,Difference = Difference,Prediction = Prediction_Model25)$minimum)
     
-    Dataframe1$Repetition = i
-    Dataframe1$PSE_Difference = PSE_Difference
-    Dataframe1$SD_Difference = JND_Difference
-    Dataframe1$CombinationStimuli = j
+    #save for each simulated dataset... :
+    Dataframe1$Repetition = i #... an index for which simulated dataset it is
+    Dataframe1$PSE_Difference = PSE_Difference #...the difference in PSE between baseline and condition of interest
+    Dataframe1$SD_Difference = JND_Difference  #...the difference in JND between baseline and condition of interest
+    Dataframe1$CombinationStimuli = j #... the combination of PSE and JND (redundancy)
     
+    #... save one line per baseline/condition of interset, participant and strength of reference stimulus
     Dataframe = rbind(Dataframe,Dataframe1 %>% 
                         group_by(ConditionOfInterest,ID,StandardValues) %>%
                         slice(1))
@@ -588,7 +613,7 @@ for (j in 1:6){
   }
 }
 
-
+#Mostly transform the dataframe constructed above from wide to long:
 Dataframe2 = data.frame(Model = rep(c("M01", "M02", "M03", "M04", "M05", "M06", "M07", 
                                       "M08", "M09", "M10", "M11", "M12", "M13", "M14",
                                       "M15", "M16", "M17", "M18", "M19", "M20", "M21",
@@ -667,6 +692,8 @@ Dataframe2 = data.frame(Model = rep(c("M01", "M02", "M03", "M04", "M05", "M06", 
                         JND_Difference = rep(Dataframe$SD_Difference, 25))
 Dataframe2$Condition_PSEJND = paste0(Dataframe2$JND_Difference,Dataframe2$PSE_Difference)
 
+#compute the difference between means and standard deviations fitted through GLMMs 
+#and means and standard deviations that were underlying the simulations of these datasets
 Dataframe2 = Dataframe2 %>% 
   mutate(ActualPSEs = case_when(
     ConditionOfInterest == 1 ~ -0.1*StandardValues,
@@ -680,7 +707,7 @@ Dataframe2 = Dataframe2 %>%
       ConditionOfInterest == 1 ~ ""
     )) %>% 
   group_by(Condition_PSEJND) %>% 
+  #compute difference in AIC between most complete model (M25, see paper) and each other model.
   mutate(AIC_Norm = AIC-median(AIC[Model == "M25"]))
 
-write.csv(Dataframe2,"DifferentConfigurations25Models.csv")
-24000*200
+write.csv(Dataframe2,"Data/DifferentConfigurations25Models.csv")

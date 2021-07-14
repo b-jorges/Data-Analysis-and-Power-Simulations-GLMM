@@ -233,7 +233,7 @@ Sim_Simple = simulateResiduals(GLMM_RandomIntercepts_JND)
 GLMM2_ThreeRandomEffectsPerIDAndStandardValues = glmer(cbind(Yes, Total - Yes) ~ ConditionOfInterest*Difference + 
                                                    (1 + Difference + ConditionOfInterest| ID) +
                                                    (1 + Difference + ConditionOfInterest| StandardValues), 
-                                                 family = binomial(link = "probit"),
+                                                   family = binomial(link = "probit"),
                                                  data = Psychometric)
 Sim_Complex = simulateResiduals(GLMM2_ThreeRandomEffectsPerIDAndStandardValues)
 
