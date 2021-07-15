@@ -26,7 +26,7 @@ Dataframe = Dataframe %>%
       velH*velH_Subject < 0 ~ "incongruent",
       velH*velH_Subject > 0 ~ "congruent",
       velH*velH_Subject == 0 ~ "1no motion")) %>%
-  filter(abs(velH_Pest) < abs(velH)*2 & Congruent != "1no motion")
+  filter(abs(velH_Pest) < abs(velH)*2)
 
 PsychometricFunctions = quickpsy(Dataframe,Difference,Pest_Bigger,
                                                     grouping = .(Congruent,participant,velH),
