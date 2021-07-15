@@ -121,7 +121,7 @@ TimingPlot2 = ggplot(Dataframe_pvalues %>%
   ggtitle("B. Fastest Configurations")
 plot_shared_legend(TimingPlot1,TimingPlot2)
 
-ggsave("Figures/Different Durations.jpg",w=12,h=6)
+ggsave("Figures/(Supplementary Figure 1) Different Durations.jpg",w=12,h=6)
 
 
 #######False Positives
@@ -277,7 +277,7 @@ PlotInteraction = ggplot(Dataframe_pvalues %>% filter(Effect == "No Effect"),
            label = round(FalsePositiveRate_Interaction$FalsePositiveRate[12],2)) +
   annotate(geom = "text", x = 1.1, y = 1,
            label = round(FalsePositiveRate_Interaction$FalsePositiveRate[13],2))
-PlotInteraction
+
 
 NumberBins_Accuracy2 = length(unique((Dataframe_pvalues %>% 
                                         filter(Optimizer != "Julia: LRT, slow" &
@@ -358,7 +358,7 @@ PlotInteraction2 = ggplot(Dataframe_pvalues %>%
   annotate(geom = "text", x = 1.1, y = 1,
            label = round(FalsePositiveRate_Interaction2$FalsePositiveRate[13],2))
 plot_grid(PlotAccuracy,PlotInteraction,PlotAccuracy2,PlotInteraction2, nrow = 2)
-ggsave("Figures/False Positives.jpg",w=12,h=8)
+ggsave("Figures/(Supplementary Figure 3) False Positives.jpg",w=12,h=8)
 
 ############AICs
 ggplot(Dataframe_pvalues %>%
@@ -372,4 +372,4 @@ ggplot(Dataframe_pvalues %>%
   ylab("AIC DIfference") +
   scale_color_manual(values = rainbow(12), name = "Method") +
   scale_x_continuous(breaks = c(10,15,20))
-ggsave("Figures/AIC differences.jpg",w=12,h=6)
+ggsave("Figures/(Supplementary Figure 2) AIC differences.jpg",w=12,h=6)
